@@ -8,7 +8,7 @@ This backend API provides a comprehensive multi-agent system for conducting auto
 
 - **Multi-Agent Interview System**: 5 specialized agents for comprehensive Excel assessment
 - **Intelligent Evaluation**: Weighted scoring across multiple skill dimensions
-- **OpenAI GPT-4o Integration**: Advanced AI capabilities for natural conversations
+- **OpenAI GPT-4o-mini Integration**: Advanced AI capabilities for natural conversations
 - **MongoDB Storage**: Conversation history and interview results persistence
 - **FastAPI Framework**: Modern, fast web framework with automatic API documentation
 - **Comprehensive Logging**: Application monitoring and debugging
@@ -36,13 +36,13 @@ This backend API provides a comprehensive multi-agent system for conducting auto
 
 This application requires the following API keys:
 
-- **OpenAI API Key**: For GPT-4o LLM integration
+- **OpenAI API Key**: For GPT-4o-mini LLM integration
 - **Tavily API Key**: For web search functionality (optional)
 - **MongoDB URI**: For database connection
 
 #### Getting API Keys
 
-1. **OpenAI API Key**: Visit [OpenAI Platform](https://platform.openai.com/api-keys) to get your OpenAI API key
+1. **OpenAI API Key**: Visit [OpenAI Platform](https://platform.openai.com/api-keys) to get your OpenAI API key for GPT-4o-mini
 2. **Tavily API Key**: Visit [Tavily](https://app.tavily.com/home) to get your search API key (optional)
 3. **MongoDB URI**: Set up MongoDB locally or use MongoDB Atlas
 
