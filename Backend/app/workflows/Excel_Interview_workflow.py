@@ -61,7 +61,7 @@ class InterviewCompleteEvent(Event):
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Initialize OpenAI LLM
-llm = OpenAI(model="gpt-4o", api_key=OPENAI_API_KEY)
+llm = OpenAI(model="gpt-4o-mini", api_key=OPENAI_API_KEY)
 
 def extract_candidate_info(user_query: str) -> Tuple[str, str]:
     """
