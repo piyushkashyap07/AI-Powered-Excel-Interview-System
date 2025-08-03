@@ -1,4 +1,4 @@
-def get_excel_interview_intro_prompt():
+def get_excel_interview_intro_prompt(intro_message):
     """
     Returns the Excel interview introduction prompt that sets the tone and explains the process.
     
@@ -41,6 +41,8 @@ Provide a welcoming introduction that includes:
 2. Clear explanation of the interview process
 3. Encouragement to ask questions
 4. First question to assess their experience level
+
+IMPORTANT: Do not use any markdown formatting (no **bold**, *italic*, or other formatting symbols). Use plain text only.
 """
     
     return INTRO_PROMPT 

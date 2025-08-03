@@ -63,6 +63,8 @@ Provide an advanced scenario that:
 2. Requires deep technical knowledge
 3. Evaluates practical application understanding
 4. Allows for detailed technical explanation
+
+IMPORTANT: Do not use any markdown formatting (no **bold**, *italic*, or other formatting symbols). Use plain text only.
 """
     
     return ADVANCED_PROMPT 

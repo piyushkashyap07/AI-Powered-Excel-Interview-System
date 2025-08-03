@@ -53,6 +53,8 @@ Provide a question that:
 2. Tests theoretical understanding
 3. Allows for detailed explanation
 4. Can lead to follow-up questions
+
+IMPORTANT: Do not use any markdown formatting (no **bold**, *italic*, or other formatting symbols). Use plain text only.
 """
     
     return THEORY_PROMPT 

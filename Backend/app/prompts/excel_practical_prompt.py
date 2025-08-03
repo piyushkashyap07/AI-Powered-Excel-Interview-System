@@ -60,6 +60,8 @@ Provide a practical scenario that:
 2. Requires Excel formula knowledge
 3. Tests problem-solving skills
 4. Allows for step-by-step explanation
+
+IMPORTANT: Do not use any markdown formatting (no **bold**, *italic*, or other formatting symbols). Use plain text only.
 """
     
     return PRACTICAL_PROMPT 

@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from bson import ObjectId
 from app.helpers.mongodb import mongodb
-from app.workflows.Excel_Interview_workflow import run_excel_interview_workflow
+from app.workflows.Excel_Interview_workflow import run_excel_interview_workflow, start_interactive_interview, process_interview_step
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +27,15 @@ class ConversationService:
                 "email": email,
                 "created_at": datetime.utcnow(),
                 "messages": [],
-                "interview_type": "excel",  # Track interview type
-                "status": "active"
+                "interview_type": "excel",
+                "status": "active",
+                "interview_state": {
+                    "current_step": "intro",
+                    "completed_steps": [],
+                    "responses": {},
+                    "evaluations": {},
+                    "is_complete": False
+                }
             }
             
             result = collection.insert_one(conversation_data)
@@ -46,9 +53,115 @@ class ConversationService:
             logger.error(f"Error creating conversation: {e}")
             raise
     
+    async def start_interactive_interview(self, conversation_id: str, user_message: str) -> Dict[str, Any]:
+        """
+        Start an interactive Excel interview
+        
+        Args:
+            conversation_id: Conversation ID
+            user_message: User's initial message
+            
+        Returns:
+            Dict containing the first question and interview state
+        """
+        try:
+            # Verify that the conversation exists
+            collection = mongodb.get_collection(self.collection_name)
+            conversation = collection.find_one({"_id": ObjectId(conversation_id)})
+            
+            if not conversation:
+                raise ValueError(f"Conversation with ID {conversation_id} not found")
+            
+            # Start the interactive interview
+            logger.info(f"Starting interactive Excel interview for conversation: {conversation_id}")
+            interview_result = await start_interactive_interview(user_message, conversation_id)
+            
+            # Update conversation with interview state
+            collection.update_one(
+                {"_id": ObjectId(conversation_id)},
+                {
+                    "$set": {
+                        "interview_state": interview_result["interview_state"],
+                        "interview_started": True,
+                        "started_at": datetime.utcnow()
+                    },
+                    "$push": {"messages": {
+                        "role": "assistant",
+                        "content": interview_result["question"],
+                        "timestamp": datetime.utcnow(),
+                        "step": "intro"
+                    }}
+                }
+            )
+            
+            return interview_result
+            
+        except Exception as e:
+            logger.error(f"Error starting interactive interview: {e}")
+            raise
+    
+    async def process_interview_step(self, conversation_id: str, user_response: str, current_step: str) -> Dict[str, Any]:
+        """
+        Process a user's response to an interview question and get the next question
+        
+        Args:
+            conversation_id: Conversation ID
+            user_response: User's response to the current question
+            current_step: Current interview step (intro, theory, practical, advanced)
+            
+        Returns:
+            Dict containing evaluation, next question, and updated state
+        """
+        try:
+            # Verify that the conversation exists
+            collection = mongodb.get_collection(self.collection_name)
+            conversation = collection.find_one({"_id": ObjectId(conversation_id)})
+            
+            if not conversation:
+                raise ValueError(f"Conversation with ID {conversation_id} not found")
+            
+            # Process the interview step
+            logger.info(f"Processing interview step {current_step} for conversation: {conversation_id}")
+            step_result = await process_interview_step(conversation_id, user_response, current_step)
+            
+            # Update conversation with new state
+            collection.update_one(
+                {"_id": ObjectId(conversation_id)},
+                {
+                    "$set": {
+                        "interview_state": step_result["interview_state"],
+                        "last_updated": datetime.utcnow()
+                    },
+                    "$push": {"messages": {
+                        "role": "user",
+                        "content": user_response,
+                        "timestamp": datetime.utcnow(),
+                        "step": current_step
+                    }}
+                }
+            )
+            
+            # If there's a next question, add it to messages
+            if not step_result["is_complete"] and step_result.get("next_question"):
+                collection.update_one(
+                    {"_id": ObjectId(conversation_id)},
+                    {"$push": {"messages": {
+                        "role": "assistant",
+                        "content": step_result["next_question"],
+                        "timestamp": datetime.utcnow(),
+                        "step": step_result["next_step"]
+                    }}}
+                )
+            
+            return step_result
+            
+        except Exception as e:
+            logger.error(f"Error processing interview step: {e}")
+            raise
+    
     async def start_excel_interview(self, conversation_id: str, user_message: str) -> Dict[str, Any]:
         """
-        Start an Excel interview and return the response
+        Start an Excel interview and return the response (legacy method for backward compatibility)
         
         Args:
             conversation_id: Conversation ID
@@ -86,9 +199,15 @@ class ConversationService:
             
             # Extract the response from workflow result
             if hasattr(workflow_result, 'result') and workflow_result.result:
+                # Handle workflow object with result attribute
                 interview_response = workflow_result.result.get("feedback", "Interview completed")
                 evaluation = workflow_result.result.get("evaluation", {})
                 candidate_info = workflow_result.result.get("candidate_info", {})
+            elif isinstance(workflow_result, dict):
+                # Handle direct dictionary result
+                interview_response = workflow_result.get("feedback", "Interview completed")
+                evaluation = workflow_result.get("evaluation", {})
+                candidate_info = workflow_result.get("candidate_info", {})
             else:
                 interview_response = str(workflow_result) if workflow_result else "Interview completed"
                 evaluation = {}
@@ -124,6 +243,35 @@ class ConversationService:
             logger.error(f"Error in Excel interview: {e}")
             raise
     
+    def get_interview_state(self, conversation_id: str) -> Dict[str, Any]:
+        """
+        Get the current interview state for a conversation
+        
+        Args:
+            conversation_id: Conversation ID
+            
+        Returns:
+            Dict containing interview state
+        """
+        try:
+            collection = mongodb.get_collection(self.collection_name)
+            conversation = collection.find_one({"_id": ObjectId(conversation_id)})
+            
+            if not conversation:
+                raise ValueError(f"Conversation with ID {conversation_id} not found")
+            
+            return conversation.get("interview_state", {
+                "current_step": "intro",
+                "completed_steps": [],
+                "responses": {},
+                "evaluations": {},
+                "is_complete": False
+            })
+            
+        except Exception as e:
+            logger.error(f"Error getting interview state: {e}")
+            raise
+    
     def get_conversation_history(self, conversation_id: str) -> Dict[str, Any]:
         """
         Get conversation history and details
@@ -148,6 +296,7 @@ class ConversationService:
                 "status": conversation.get("status", "active"),
                 "interview_type": conversation.get("interview_type"),
                 "interview_completed": conversation.get("interview_completed", False),
+                "interview_state": conversation.get("interview_state", {}),
                 "evaluation": conversation.get("evaluation", {}),
                 "candidate_info": conversation.get("candidate_info", {}),
                 "messages": conversation.get("messages", [])
@@ -177,6 +326,7 @@ class ConversationService:
                     "status": conv.get("status", "active"),
                     "interview_type": conv.get("interview_type"),
                     "interview_completed": conv.get("interview_completed", False),
+                    "interview_state": conv.get("interview_state", {}),
                     "message_count": len(conv.get("messages", []))
                 })
             

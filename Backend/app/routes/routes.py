@@ -11,7 +11,10 @@ from app.models.schema import (
     MessageCreate,
     MessageResponse,
     CleanBusinessReportResponse,
-    PropensityScore
+    PropensityScore,
+    InterviewStepCreate,
+    InterviewStepResponse,
+    InterviewState
 )
 from fastapi import APIRouter
 
@@ -67,8 +70,6 @@ async def create_conversation(conversation_data: ConversationCreate):
     except Exception as e:
         logger.error(f"Error creating conversation: {e}")
         raise
-
-
 
 
 @router.get("/get_conversations")
@@ -156,4 +157,87 @@ async def start_excel_interview(message_data: MessageCreate):
                 visual_indicator="🔴 Error"
             ),
             overall_summary=f"Error: {str(e)}"
+        )
+
+
+# New Interactive Interview Endpoints
+
+@router.post("/start-interactive-interview", response_model=InterviewStepResponse)
+async def start_interactive_interview(message_data: MessageCreate):
+    """
+    Start an interactive Excel interview
+    Takes a conversation ID and user message, returns the first question.
+    """
+    logger.info("Start interactive interview endpoint accessed !")
+    try:
+        result = await conversation_service.start_interactive_interview(
+            message_data.conversation_id, 
+            message_data.user_message
+        )
+        
+        return InterviewStepResponse(
+            conversation_id=result["conversation_id"],
+            current_step=result["current_step"],
+            question=result["question"],
+            previous_response=None,
+            evaluation=None,
+            is_complete=result["is_complete"],
+            next_step=result["next_step"]
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in start interactive interview endpoint: {e}")
+        raise
+
+
+@router.post("/process-interview-step", response_model=InterviewStepResponse)
+async def process_interview_step(step_data: InterviewStepCreate):
+    """
+    Process a user's response to an interview question and get the next question
+    Takes a conversation ID, user response, and current step.
+    """
+    logger.info("Process interview step endpoint accessed !")
+    try:
+        result = await conversation_service.process_interview_step(
+            step_data.conversation_id,
+            step_data.user_response,
+            step_data.current_step
+        )
+        
+        return InterviewStepResponse(
+            conversation_id=result["conversation_id"],
+            current_step=result["current_step"],
+            question=result.get("next_question", ""),
+            previous_response=step_data.user_response,
+            evaluation=result.get("evaluation", {}),
+            is_complete=result["is_complete"],
+            next_step=result.get("next_step")
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in process interview step endpoint: {e}")
+        raise
+
+
+@router.get("/interview-state/{conversation_id}")
+async def get_interview_state(conversation_id: str):
+    """
+    Get the current interview state for a conversation
+    """
+    logger.info(f"Get interview state endpoint accessed for conversation: {conversation_id}")
+    try:
+        interview_state = conversation_service.get_interview_state(conversation_id)
+        
+        return ApiResponse(
+            status_code=200,
+            message="Interview state retrieved successfully",
+            data=interview_state
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting interview state: {e}")
+        return ApiResponse(
+            status_code=500,
+            message="Error retrieving interview state",
+            data={}
         )

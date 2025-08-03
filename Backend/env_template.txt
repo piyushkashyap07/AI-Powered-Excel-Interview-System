@@ -1,0 +1,18 @@
+# Copy this file to .env and update with your actual credentials
+
+# MongoDB Configuration
+# For local MongoDB without authentication:
+MONGODB_URI=mongodb://localhost:27017/propensity_score_db
+
+# For MongoDB Atlas (cloud) - uncomment and update:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/propensity_score_db
+
+# For local MongoDB with authentication - uncomment and update:
+# MONGODB_URI=mongodb://username:password@localhost:27017/propensity_score_db
+
+# OpenAI API Configuration
+# Replace with your actual OpenAI API key
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Example with actual values:
+# OPENAI_API_KEY=sk-1234567890abcdef1234567890abcdef1234567890abcdef 

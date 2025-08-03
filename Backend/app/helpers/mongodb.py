@@ -4,6 +4,7 @@ import logging
 from typing import Optional
 from dotenv import load_dotenv
 from bson.objectid import ObjectId
+from urllib.parse import quote_plus
 
 # Load environment variables from .env file
 load_dotenv()
@@ -22,8 +23,38 @@ class MongoDB:
     def __init__(self):
         if not self._client:
             mongodb_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+            
+            # Handle URL encoding for username and password if they exist in the URI
+            if "@" in mongodb_uri and "mongodb://" in mongodb_uri:
+                # Parse the URI to extract and encode username/password
+                try:
+                    # Split the URI to get the protocol and the rest
+                    protocol_part = mongodb_uri.split("://", 1)
+                    if len(protocol_part) == 2:
+                        protocol = protocol_part[0] + "://"
+                        rest = protocol_part[1]
+                        
+                        # Check if there are credentials
+                        if "@" in rest:
+                            credentials_part = rest.split("@", 1)
+                            if len(credentials_part) == 2:
+                                credentials = credentials_part[0]
+                                host_part = credentials_part[1]
+                                
+                                # Split credentials into username and password
+                                if ":" in credentials:
+                                    username, password = credentials.split(":", 1)
+                                    # URL encode username and password
+                                    encoded_username = quote_plus(username)
+                                    encoded_password = quote_plus(password)
+                                    # Reconstruct the URI
+                                    mongodb_uri = f"{protocol}{encoded_username}:{encoded_password}@{host_part}"
+                except Exception as e:
+                    logger.warning(f"Failed to encode MongoDB URI credentials: {e}")
+            
             self._client = MongoClient(mongodb_uri, tlsAllowInvalidCertificates=True)
-            self.db = self._client.get_database("propensity_score_db")
+            db_name = os.getenv("MONGODB_DB_NAME", "propensity_score_db")
+            self.db = self._client.get_database(db_name)
             logger.info("MongoDB connection initialized")
     
     def get_collection(self, collection_name: str):

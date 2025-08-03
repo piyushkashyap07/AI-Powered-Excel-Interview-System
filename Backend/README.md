@@ -37,19 +37,18 @@ This backend API provides a comprehensive multi-agent system for conducting auto
 This application requires the following API keys:
 
 - **OpenAI API Key**: For GPT-4o-mini LLM integration
-- **Tavily API Key**: For web search functionality (optional)
+
 - **MongoDB URI**: For database connection
 
 #### Getting API Keys
 
 1. **OpenAI API Key**: Visit [OpenAI Platform](https://platform.openai.com/api-keys) to get your OpenAI API key for GPT-4o-mini
-2. **Tavily API Key**: Visit [Tavily](https://app.tavily.com/home) to get your search API key (optional)
+
 3. **MongoDB URI**: Set up MongoDB locally or use MongoDB Atlas
 
 Set these keys in your environment variables or `.env` file:
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
-TAVILY_API_KEY=your_tavily_api_key_here
 MONGODB_URI=your_mongodb_connection_string
 ```
 
@@ -117,7 +116,6 @@ pip install -r requirements.txt
 Create a `.env` file in the `Backend` directory:
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
-TAVILY_API_KEY=your_tavily_api_key_here
 MONGODB_URI=your_mongodb_connection_string
 ```
 
