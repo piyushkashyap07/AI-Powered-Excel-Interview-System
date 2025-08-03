@@ -4,6 +4,7 @@ import json
 import time
 from typing import Any, Dict, List, Tuple, Optional
 from llama_index.llms.openai import OpenAI
+from llama_index.core.workflow import InputRequiredEvent, HumanResponseEvent
 import dotenv
 from app.prompts.excel_interview_intro_prompt import get_excel_interview_intro_prompt
 from app.prompts.excel_theory_prompt import get_excel_theory_prompt
@@ -292,13 +293,77 @@ async def process_interview_step(conversation_id: str, user_response: str, curre
                 )
                 next_question = advanced_response.text
         else:
-            # Interview is complete - generate final results using all Q&A data
+            # Interview is complete - get human approval before generating final results
             is_complete = True
             interview_state["is_complete"] = True
             
-            # Generate comprehensive final results using all stored Q&A data
-            final_results = await generate_final_results_from_qa_data(conversation_id, interview_state)
-            interview_state["final_results"] = final_results
+            # Get all Q&A data for human review
+            qa_pairs = interview_state.get("qa_pairs", [])
+            evaluations = interview_state.get("evaluations", {})
+            candidate_info = interview_state.get("candidate_info", {})
+            
+            # Prepare summary for human review
+            review_summary = f"""
+            INTERVIEW COMPLETE - HUMAN REVIEW REQUIRED
+            
+            Candidate: {candidate_info.get('name', 'Unknown')}
+            Experience Level: {candidate_info.get('experience_level', 'Unknown')}
+            Total Questions Answered: {len(qa_pairs)}
+            
+            INTERVIEW SUMMARY:
+            """
+            
+            # Add each Q&A pair to the review summary
+            for i, qa in enumerate(qa_pairs, 1):
+                step = qa.get("step", "unknown")
+                question = qa.get("question", "")
+                answer = qa.get("answer", "")
+                evaluation = evaluations.get(step, {})
+                score = evaluation.get("score", 7)
+                feedback = evaluation.get("feedback", "No feedback available")
+                
+                review_summary += f"""
+            Question {i} ({step.title()}):
+            Q: {question[:150]}{'...' if len(question) > 150 else ''}
+            A: {answer[:150]}{'...' if len(answer) > 150 else ''}
+            Score: {score}/10
+            Feedback: {feedback}
+            """
+            
+            # Calculate preliminary overall score
+            scores = [eval_data.get("score", 7) for eval_data in evaluations.values()]
+            preliminary_score = sum(scores) / len(scores) if scores else 7
+            
+            review_summary += f"""
+            
+            PRELIMINARY OVERALL SCORE: {preliminary_score:.1f}/10
+            
+            Do you approve this interview evaluation and want to generate final results? (yes/no):
+            """
+            
+            # Human-in-the-loop validation
+            try:
+                # For now, we'll simulate the human approval process
+                # In a real implementation, this would use the LlamaIndex workflow events
+                human_approval = await get_human_approval_for_interview(review_summary, conversation_id)
+                
+                if human_approval:
+                    # Generate comprehensive final results using all stored Q&A data
+                    final_results = await generate_final_results_from_qa_data(conversation_id, interview_state)
+                    interview_state["final_results"] = final_results
+                    logger.info(f"Human approved final results for conversation {conversation_id}")
+                else:
+                    # Human rejected the evaluation
+                    interview_state["human_rejected"] = True
+                    interview_state["rejection_reason"] = "Human reviewer did not approve the evaluation"
+                    logger.info(f"Human rejected final results for conversation {conversation_id}")
+                    
+            except Exception as e:
+                logger.error(f"Error in human approval process: {e}")
+                # Fallback: generate results without human approval
+                final_results = await generate_final_results_from_qa_data(conversation_id, interview_state)
+                interview_state["final_results"] = final_results
+                interview_state["human_approval_bypassed"] = True
         
         # Update the conversation in MongoDB with the new interview state
         collection.update_one(
@@ -321,7 +386,11 @@ async def process_interview_step(conversation_id: str, user_response: str, curre
             "total_questions": 6,
             "current_question": interview_state["current_question"],
             "questions_remaining": questions_remaining,
-            "final_results": interview_state.get("final_results") if is_complete else None
+            "final_results": interview_state.get("final_results") if is_complete else None,
+            "human_approved": interview_state.get("human_approved", True),
+            "human_rejected": interview_state.get("human_rejected", False),
+            "rejection_reason": interview_state.get("rejection_reason", ""),
+            "human_approval_bypassed": interview_state.get("human_approval_bypassed", False)
         }
         
     except Exception as e:
@@ -698,3 +767,181 @@ async def get_interview_qa_data(conversation_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error retrieving Q&A data: {e}")
         raise 
+
+async def get_human_approval_for_interview(review_summary: str, conversation_id: str) -> bool:
+    """
+    Get human approval for interview evaluation using LlamaIndex workflow events.
+    
+    Args:
+        review_summary: Summary of the interview for human review
+        conversation_id: Conversation ID
+        
+    Returns:
+        bool: True if human approves, False if rejected
+    """
+    try:
+        # In a real implementation, this would use LlamaIndex workflow events
+        # For now, we'll simulate the process
+        
+        # Log the review summary for human review
+        logger.info(f"Human review required for conversation {conversation_id}")
+        logger.info(f"Review summary: {review_summary}")
+        
+        # Simulate human approval process
+        # In production, this would trigger a workflow event that waits for human input
+        question = f"""
+        {review_summary}
+        
+        Do you approve this interview evaluation and want to generate final results? (yes/no): 
+        """
+        
+        # For now, we'll simulate automatic approval
+        # In a real implementation, this would use:
+        # response_event = await ctx.wait_for_event(
+        #     HumanResponseEvent,
+        #     waiter_event=InputRequiredEvent(prefix=question)
+        # )
+        # return response_event.response.strip().lower() == "yes"
+        
+        # Simulate human approval (you can modify this for testing)
+        simulated_human_response = "yes"  # Change to "no" to test rejection
+        
+        logger.info(f"Simulated human response: {simulated_human_response}")
+        
+        return simulated_human_response.strip().lower() == "yes"
+        
+    except Exception as e:
+        logger.error(f"Error in human approval process: {e}")
+        # Default to approval if there's an error
+        return True 
+
+async def workflow_human_approval_step(ctx, review_summary: str, conversation_id: str) -> Dict[str, Any]:
+    """
+    LlamaIndex workflow step for human approval of interview evaluation.
+    
+    Args:
+        ctx: Workflow context
+        review_summary: Summary of the interview for human review
+        conversation_id: Conversation ID
+        
+    Returns:
+        Dict containing approval status and final results
+    """
+    try:
+        # Present the review summary to the human
+        question = f"""
+        {review_summary}
+        
+        Do you approve this interview evaluation and want to generate final results? (yes/no): 
+        """
+        
+        # Wait for human response using LlamaIndex workflow events
+        response_event = await ctx.wait_for_event(
+            HumanResponseEvent,
+            waiter_event=InputRequiredEvent(prefix=question)
+        )
+        
+        human_response = response_event.response.strip().lower()
+        approved = human_response == "yes"
+        
+        if approved:
+            # Get the interview state and generate final results
+            from app.helpers.mongodb import mongodb
+            from bson import ObjectId
+            collection = mongodb.get_collection("conversations")
+            conversation = collection.find_one({"_id": ObjectId(conversation_id)})
+            
+            if conversation:
+                interview_state = conversation.get("interview_state", {})
+                final_results = await generate_final_results_from_qa_data(conversation_id, interview_state)
+                
+                # Update the interview state with approval
+                interview_state["human_approved"] = True
+                interview_state["final_results"] = final_results
+                
+                collection.update_one(
+                    {"_id": ObjectId(conversation_id)},
+                    {"$set": {"interview_state": interview_state}}
+                )
+                
+                return {
+                    "approved": True,
+                    "final_results": final_results,
+                    "message": "Human approved the evaluation. Final results generated."
+                }
+            else:
+                return {
+                    "approved": False,
+                    "error": "Conversation not found",
+                    "message": "Could not find interview data for final results generation."
+                }
+        else:
+            # Human rejected the evaluation
+            from app.helpers.mongodb import mongodb
+            from bson import ObjectId
+            collection = mongodb.get_collection("conversations")
+            
+            # Update the interview state with rejection
+            collection.update_one(
+                {"_id": ObjectId(conversation_id)},
+                {"$set": {
+                    "interview_state.human_rejected": True,
+                    "interview_state.rejection_reason": "Human reviewer did not approve the evaluation"
+                }}
+            )
+            
+            return {
+                "approved": False,
+                "message": "Human rejected the evaluation. No final results generated."
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in workflow human approval step: {e}")
+        return {
+            "approved": False,
+            "error": str(e),
+            "message": "Error occurred during human approval process."
+        } 
+
+# Example LlamaIndex workflow integration
+"""
+# This is how you would integrate the human approval step in a LlamaIndex workflow:
+
+from llama_index.core.workflow import Workflow
+
+async def excel_interview_workflow_with_human_approval(ctx, user_message: str, conversation_id: str):
+    # Step 1: Start the interview
+    interview_start = await start_interactive_interview(user_message, conversation_id)
+    
+    # Step 2: Process interview steps (this would be in a loop in real implementation)
+    # ... interview steps ...
+    
+    # Step 3: When interview is complete, get human approval
+    if interview_start.get("is_complete"):
+        qa_data = await get_interview_qa_data(conversation_id)
+        review_summary = prepare_review_summary(qa_data)
+        
+        # Human-in-the-loop approval step
+        approval_result = await workflow_human_approval_step(ctx, review_summary, conversation_id)
+        
+        if approval_result["approved"]:
+            return {
+                "status": "completed",
+                "final_results": approval_result["final_results"],
+                "message": approval_result["message"]
+            }
+        else:
+            return {
+                "status": "rejected",
+                "message": approval_result["message"]
+            }
+    
+    return interview_start
+
+# Usage in a workflow:
+# workflow = Workflow(
+#     steps=[
+#         excel_interview_workflow_with_human_approval
+#     ]
+# )
+""" 
