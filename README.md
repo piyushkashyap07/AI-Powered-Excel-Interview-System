@@ -5,14 +5,14 @@ A comprehensive, interactive Excel skills assessment platform that conducts step
 ## 📸 Screenshots
 
 ### Landing Page
-![AI-Powered Excel Interview System Landing Page](https://github.com/piyushkashyap07/AI-Powered-Excel-Interview-System/assets/screenshots/image%20(1).png)
+![AI-Powered Excel Interview System Landing Page](https://github.com/piyushkashyap07/AI-Powered-Excel-Interview-System/assets/screenshots/landing.png)
 
 *Interactive interview interface with progress tracking and real-time feedback*
 
-### Interview Process
-![Interview Process](https://github.com/piyushkashyap07/AI-Powered-Excel-Interview-System/assets/screenshots/image%20(2).png)
+### Interview History
+![Interview History](https://github.com/piyushkashyap07/AI-Powered-Excel-Interview-System/assets/screenshots/history.png)
 
-*Step-by-step question flow with AI-powered evaluation*
+*Interview history and results tracking interface*
 
 ## 🚀 Features
 
