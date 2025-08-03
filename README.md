@@ -2,6 +2,18 @@
 
 A comprehensive, interactive Excel skills assessment platform that conducts step-by-step interviews using AI, stores Q&A data in MongoDB, and provides detailed evaluation results with human-in-the-loop validation.
 
+## 📸 Screenshots
+
+### Landing Page
+![AI-Powered Excel Interview System Landing Page](https://github.com/piyushkashyap07/AI-Powered-Excel-Interview-System/assets/screenshots/image%20(1).png)
+
+*Interactive interview interface with progress tracking and real-time feedback*
+
+### Interview Process
+![Interview Process](https://github.com/piyushkashyap07/AI-Powered-Excel-Interview-System/assets/screenshots/image%20(2).png)
+
+*Step-by-step question flow with AI-powered evaluation*
+
 ## 🚀 Features
 
 ### Core Functionality
@@ -31,8 +43,8 @@ A comprehensive, interactive Excel skills assessment platform that conducts step
 
 ### 1. Clone the Repository
 ```bash
-git clone <repository-url>
-cd coding-ninjas
+git clone https://github.com/piyushkashyap07/AI-Powered-Excel-Interview-System.git
+cd AI-Powered-Excel-Interview-System
 ```
 
 ### 2. Backend Setup
